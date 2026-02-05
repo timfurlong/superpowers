@@ -40,11 +40,35 @@ Stop. Don't proceed to Step 2.
 ### Step 2: Determine Base Branch
 
 ```bash
-# Try common base branches
-git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
+# Get current branch name
+current_branch=$(git branch --show-current)
+
+# Check for stored parent (set by using-git-worktrees skill)
+parent_branch=$(git config branch."$current_branch".parent)
 ```
 
-Or ask: "This branch split from main - is that correct?"
+**If parent found:** Verify it still exists:
+```bash
+if git rev-parse --verify "$parent_branch" &>/dev/null; then
+    # Use stored parent
+else
+    # Parent branch no longer exists - fall through to ask user
+    echo "Stored parent branch '$parent_branch' no longer exists."
+fi
+```
+
+**If no parent stored:** Ask user to choose:
+```
+No parent branch recorded for <current_branch>.
+
+Which branch should this merge into?
+
+1. main
+2. develop
+3. Other (specify)
+
+Which option?
+```
 
 ### Step 3: Present Options
 
@@ -80,8 +104,9 @@ git merge <feature-branch>
 # Verify tests on merged result
 <test command>
 
-# If tests pass
+# If tests pass, delete branch and clean up config
 git branch -d <feature-branch>
+git config --unset branch.<feature-branch>.parent 2>/dev/null
 ```
 
 Then: Cleanup worktree (Step 5)
@@ -129,6 +154,7 @@ If confirmed:
 ```bash
 git checkout <base-branch>
 git branch -D <feature-branch>
+git config --unset branch.<feature-branch>.parent 2>/dev/null
 ```
 
 Then: Cleanup worktree (Step 5)

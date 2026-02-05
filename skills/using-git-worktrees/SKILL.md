@@ -93,12 +93,37 @@ case $LOCATION in
     ;;
 esac
 
+# Capture parent branch BEFORE creating worktree
+parent_branch=$(git branch --show-current)
+
 # Create worktree with new branch
 git worktree add "$path" -b "$BRANCH_NAME"
+
+# Record parent branch in git config
+git config branch."$BRANCH_NAME".parent "$parent_branch"
+
 cd "$path"
 ```
 
-### 3. Run Project Setup
+### 3. Copy .claude/settings.local.json
+
+If the original repository has `.claude/settings.local.json`, copy it to the new worktree:
+
+```bash
+# Get the original repo root
+original_root=$(git worktree list | head -1 | awk '{print $1}')
+
+# Copy settings.local.json if it exists
+if [ -f "$original_root/.claude/settings.local.json" ]; then
+  mkdir -p "$path/.claude"
+  cp "$original_root/.claude/settings.local.json" "$path/.claude/settings.local.json"
+  echo "Copied .claude/settings.local.json to worktree"
+fi
+```
+
+**Why this matters:** `settings.local.json` is typically gitignored and contains user-specific Claude Code configuration. Without copying it, the worktree will lack local settings like allowed commands and permissions.
+
+### 4. Run Project Setup
 
 Auto-detect and run appropriate setup:
 
@@ -117,7 +142,7 @@ if [ -f pyproject.toml ]; then poetry install; fi
 if [ -f go.mod ]; then go mod download; fi
 ```
 
-### 4. Verify Clean Baseline
+### 5. Verify Clean Baseline
 
 Run tests to ensure worktree starts clean:
 
@@ -133,7 +158,7 @@ go test ./...
 
 **If tests pass:** Report ready.
 
-### 5. Report Location
+### 6. Report Location
 
 ```
 Worktree ready at <full-path>
@@ -183,6 +208,7 @@ You: I'm using the using-git-worktrees skill to set up an isolated workspace.
 [Check .worktrees/ - exists]
 [Verify ignored - git check-ignore confirms .worktrees/ is ignored]
 [Create worktree: git worktree add .worktrees/auth -b feature/auth]
+[Copy .claude/settings.local.json to worktree]
 [Run npm install]
 [Run npm test - 47 passing]
 
@@ -210,9 +236,8 @@ Ready to implement auth feature
 
 **Called by:**
 - **brainstorming** (Phase 4) - REQUIRED when design is approved and implementation follows
-- **subagent-driven-development** - REQUIRED before executing any tasks
-- **executing-plans** - REQUIRED before executing any tasks
 - Any skill needing isolated workspace
 
 **Pairs with:**
 - **finishing-a-development-branch** - REQUIRED for cleanup after work complete
+- **executing-plans** or **subagent-driven-development** - Work happens in this worktree

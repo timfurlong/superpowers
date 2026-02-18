@@ -105,23 +105,23 @@ git config branch."$BRANCH_NAME".parent "$parent_branch"
 cd "$path"
 ```
 
-### 3. Copy .claude/settings.local.json
+### 3. Copy untracked .claude/ files
 
-If the original repository has `.claude/settings.local.json`, copy it to the new worktree:
+Copy untracked `.claude/` files from the original worktree so the new worktree has settings, agents, skills, and project instructions that may not be on the base branch yet:
 
 ```bash
 # Get the original repo root
 original_root=$(git worktree list | head -1 | awk '{print $1}')
 
-# Copy settings.local.json if it exists
-if [ -f "$original_root/.claude/settings.local.json" ]; then
+# Copy untracked .claude/ files if the directory exists
+if [ -d "$original_root/.claude" ]; then
   mkdir -p "$path/.claude"
-  cp "$original_root/.claude/settings.local.json" "$path/.claude/settings.local.json"
-  echo "Copied .claude/settings.local.json to worktree"
+  rsync -a --ignore-existing "$original_root/.claude/" "$path/.claude/"
+  echo "Copied untracked .claude/ files to worktree"
 fi
 ```
 
-**Why this matters:** `settings.local.json` is typically gitignored and contains user-specific Claude Code configuration. Without copying it, the worktree will lack local settings like allowed commands and permissions.
+**Why this matters:** Files like `settings.local.json` (gitignored, contains permissions), `CLAUDE.md` (project instructions), custom agents, and skills may exist in the original worktree but not on the branch the new worktree was created from. `--ignore-existing` fills in missing files without overwriting tracked files that came with the branch.
 
 ### 4. Run Project Setup
 
@@ -208,7 +208,7 @@ You: I'm using the using-git-worktrees skill to set up an isolated workspace.
 [Check .worktrees/ - exists]
 [Verify ignored - git check-ignore confirms .worktrees/ is ignored]
 [Create worktree: git worktree add .worktrees/auth -b feature/auth]
-[Copy .claude/settings.local.json to worktree]
+[Copy untracked .claude/ files to worktree]
 [Run npm install]
 [Run npm test - 47 passing]
 
